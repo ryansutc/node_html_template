@@ -10,6 +10,7 @@
  */
 
 var gulp = require('gulp'),
+    fs = require('fs'),
     glob = require('glob'),
     newer = require('gulp-newer'),
     concat = require('gulp-concat'),
@@ -25,11 +26,13 @@ var gulp = require('gulp'),
     source = require('vinyl-source-stream'), //https://www.viget.com/articles/gulp-browserify-starter-faq says you need this to work with browserify in gulp to make it a stream
     transform = require('vinyl-transform'),
     buffer = require('vinyl-buffer'), // https://www.npmjs.com/package/vinyl-buffer
+    mustache= require('gulp-mustache'), // https://www.npmjs.com/package/gulp-mustache
     isProd = false,
       
     // folders
     folder = { src: 'src/', build: 'build/'};
 
+    
 if(process.argv[process.argv.length-1] == '--prod' || process.argv[process.argv.length-1] == '--production'){
   console.log("running in prod mode")
   isProd = true
@@ -42,11 +45,14 @@ gulp.task('run', ['html', 'js']); //terminal: gulp run will run all stuff
 gulp.task('default', ['run', 'watch']) ; //plain ol' terminal gulp will do above & watch for changes
 
 // HTML processing
-gulp.task('html', function() {
+gulp.task('html', ['js'], function() {
   var out = folder.build + "/html"
   var page = gulp.src(folder.src + 'html/**/*')
-      .pipe(newer(out));
+      .pipe(newer(out))
+      //.pipe(mustache('./build/rev-manifest.json',{},{}))
+      .pipe(mustache(parseManifest('./build/rev-manifest.json'),{},{}))
       
+  
   // minify code if production
   if (isProd) {
     page = page.pipe(htmlclean());
@@ -64,13 +70,15 @@ gulp.task("js", function () {
         .pipe(buffer())
         .pipe(gulpif(isProd, stripdebug()))
         .pipe(gulpif(isProd,uglify()))
+        .pipe(rev()) //cache busting
+        .pipe(gulp.dest('./build/js/'))
+        .pipe(rev.manifest())
         
-
-  return jsbuild.pipe(gulp.dest('./build/js/'))
+  return jsbuild.pipe(gulp.dest('./build'));
 });
 
 // watch for changes
-gulp.task('watch', function() {
+gulp.task('watch', ['html'], function() {
   //html changes
   gulp.watch(folder.src + 'html/**/*', ['html']);
   // javascript changes
@@ -79,3 +87,41 @@ gulp.task('watch', function() {
   //gulp.watch(folder.src + 'scss/**/*', ['css']);
 
 });
+
+gulp.task('compile', function () {
+	// read in our manifest file
+	var manifest = JSON.parse(fs.readFileSync('./build/rev-manifest.json', 'utf8'));
+
+  console.log(manifest)
+})
+
+
+//###########################################
+/**
+ * Support function for gulp. Should probably
+ * be its own module.
+ * 
+ * Description: Parses, manifest file to a 
+ * mustache friendly json object
+ */
+
+function parseManifest(jsonfile){
+
+    var manifest = JSON.parse(fs.readFileSync(jsonfile, 'utf8'));
+    var newobj = {}
+    for (var key in manifest){
+        if (manifest.hasOwnProperty(key)) {
+            // do stuff
+            console.log(manifest[key])
+            mainname = key.substring(0,key.indexOf('.'))
+            suffixname = key.substring(key.indexOf('.')+1, key.length)
+            if(!newobj.hasOwnProperty(mainname)){
+                newobj[mainname] = {} 
+            }
+            var subprop = newobj[mainname]
+            subprop[suffixname] = manifest[key]
+        }
+    }
+
+    return newobj
+}
