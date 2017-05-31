@@ -16,28 +16,39 @@ var gulp = require('gulp'),
     deporder = require('gulp-deporder'), //https://github.com/mkleehammer/gulp-deporder
     stripdebug = require('gulp-strip-debug'), //https://www.npmjs.com/package/gulp-strip-debug
     uglify = require('gulp-uglify'),
+    strreamify = require('gulp-streamify'), //https://github.com/nfroidure/gulp-streamify
     htmlclean = require('gulp-htmlclean'),
-    browserify = require('browserify'),
+    gulpif = require('gulp-if'),
+    rev = require('gulp-rev'), //https://www.npmjs.com/package/gulp-rev
+    watch = require('gulp-watch'), //https://www.npmjs.com/package/gulp-watchgulp
+    browserify = require('browserify'), //https://www.npmjs.com/package/gulp-cache-bust
     source = require('vinyl-source-stream'), //https://www.viget.com/articles/gulp-browserify-starter-faq says you need this to work with browserify in gulp to make it a stream
     transform = require('vinyl-transform'),
-    yargs = require('yargs'),
-    // development mode?
-    devBuild = (process.env.NODE_ENV !== 'production'),
-
+    buffer = require('vinyl-buffer'), // https://www.npmjs.com/package/vinyl-buffer
+    isProd = false,
+      
     // folders
     folder = { src: 'src/', build: 'build/'};
 
+if(process.argv[process.argv.length-1] == '--prod' || process.argv[process.argv.length-1] == '--production'){
+  console.log("running in prod mode")
+  isProd = true
+}
+else {
+  console.log("running in dev mode")
+}
 
-gulp.task('default', ['html', 'js']) ; //what to do if you just type gulp in terminal
+gulp.task('run', ['html', 'js']); //terminal: gulp run will run all stuff
+gulp.task('default', ['run', 'watch']) ; //plain ol' terminal gulp will do above & watch for changes
 
 // HTML processing
 gulp.task('html', function() {
   var out = folder.build + "/html"
   var page = gulp.src(folder.src + 'html/**/*')
       .pipe(newer(out));
-
+      
   // minify code if production
-  if (!devBuild) {
+  if (isProd) {
     page = page.pipe(htmlclean());
   }
 
@@ -45,51 +56,26 @@ gulp.task('html', function() {
 });
 
 
-
-// JavaScript processing (https://www.sitepoint.com/introduction-gulp-js/)
-gulp.task('js', function() {
-
-  var jsbuild = gulp.src(folder.src + 'js/**/*')
-    .pipe(deporder());
-    //.pipe(concat('concat.js'));
-
-  
-  jsbuild = transform(function() {
-    var b = browserify('concat.js');
-    return b.bundle();
-  });  
-  
-  if (!devBuild) {
-    jsbuild = jsbuild
-      .pipe(stripdebug())
-      .pipe(uglify());
-  }
-
-  return jsbuild.pipe(gulp.dest(folder.build + 'js/**/*.js'));
-
-});
-
-gulp.task('browserify', ['js'], function() {
-    return browserify() //'./build/js/concat.js'
-        .bundle()
-        //Pass desired output filename to vinyl-source-stream
-        .pipe(source('./build/js/main.js'))
-        // Start piping stream to tasks!
-        .pipe(gulp.dest('./build/js/'));
-});
-
-gulp.task("bundle", function () {
+gulp.task("js", function () {
   var files = glob.sync(folder.src + 'js/**/*.js');
-  var jsbuild = browserify(files)
+  var jsbuild = gulpif(isProd,browserify(files), browserify(files, {debug:true})) // {debug:true}
         .bundle()
         .pipe(source("main.js"))
-        //.pipe(gulp.dest('./build/js/'))
-
-  if (!devBuild) {
-    jsbuild = jsbuild
-      .pipe(stripdebug())
-      .pipe(uglify())
-  }
+        .pipe(buffer())
+        .pipe(gulpif(isProd, stripdebug()))
+        .pipe(gulpif(isProd,uglify()))
+        
 
   return jsbuild.pipe(gulp.dest('./build/js/'))
+});
+
+// watch for changes
+gulp.task('watch', function() {
+  //html changes
+  gulp.watch(folder.src + 'html/**/*', ['html']);
+  // javascript changes
+  gulp.watch(folder.src + 'js/**/*', ['js']);
+  // css changes
+  //gulp.watch(folder.src + 'scss/**/*', ['css']);
+
 });

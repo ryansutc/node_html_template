@@ -9,3 +9,15 @@ Used to test out a basic node web project:
 
 Hoping this will be the standard workflow for vanilla HTML projects
 
+### Setup
+
+Make sure you have Node and NPM installed.
+Then install Gulp, Browserify and Watchify installed globally
+
+```
+npm install gulp-cli -g
+npm install -g browserify
+
+```
+
+### To Run
