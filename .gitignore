@@ -43,3 +43,7 @@ node_modules/
 # VSCode Settings #
 ######################
 .vscode/
+
+# Build Files #
+######################
+.build/

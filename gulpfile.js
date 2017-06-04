@@ -13,7 +13,6 @@
  * https://slicejack.com/introduction-to-postcss/
  */
 
-//No comment
 var gulp = require('gulp'),
     fs = require('fs'),
     glob = require('glob'),
@@ -43,8 +42,8 @@ var gulp = require('gulp'),
       
     // folders
     folder = { src: 'src/', build: 'build/'};
+    var mymanifestfile = 'build/rev-manifest.json';
 
-    
 if(process.argv[process.argv.length-1] == '--prod' || process.argv[process.argv.length-1] == '--production'){
   console.log("running in prod mode")
   isProd = true
@@ -57,12 +56,12 @@ gulp.task('run', ['html', 'js', 'css']); //terminal: gulp run will run all stuff
 gulp.task('default', ['run', 'watch']) ; //plain ol' terminal gulp will do above & watch for changes
 
 // HTML processing
-gulp.task('html', ['js'], function() {
+gulp.task('html', ['js', 'css'], function() {
   var out = folder.build + "/html"
   var page = gulp.src(folder.src + 'html/**/*')
       .pipe(newer(out))
       //.pipe(mustache('./build/rev-manifest.json',{},{}))
-      .pipe(mustache(parseManifest('./build/rev-manifest.json'),{},{}))
+      .pipe(mustache(parseManifest(mymanifestfile),{},{}))
       
   // minify code if production
   if (isProd) {
@@ -73,6 +72,15 @@ gulp.task('html', ['js'], function() {
 });
 
 gulp.task("js", function () {
+  //delete existing built js file
+  if(fs.exists(mymanifestfile)){
+    var oldfile = findValueInManifest('main.js', mymanifestfile)
+    if(oldfile != null){
+      fs.unlinkSync('build/js/' + oldfile);
+      console.log('successfully deleted build/js/' + oldfile);
+    }
+  }
+
   var files = glob.sync(folder.src + 'js/**/*.js');
   var jsbuild = gulpif(isProd,browserify(files), browserify(files, {debug:true}))
         .bundle()
@@ -82,12 +90,12 @@ gulp.task("js", function () {
         .pipe(gulpif(isProd,uglify()))
         .pipe(rev()) //cache busting
         .pipe(gulp.dest('./build/js/'))
-        .pipe(rev.manifest())
-        
+        .pipe(rev.manifest('build/rev-manifest.json', {base: './build', merge: true}))
+      
   return jsbuild.pipe(gulp.dest('./build'));
 });
 
-gulp.task('css', ['js'], function () {
+gulp.task('css', function () {
   /**
    * SASS/CSS files are organized as per here:
    * http://thesassway.com/beginner/how-to-structure-a-sass-project
@@ -98,6 +106,14 @@ gulp.task('css', ['js'], function () {
    * folder directory
    * 
    */
+  //delete existing built css file
+  if(fs.exists(mymanifestfile)){
+    var oldfile = findValueInManifest('main.css', mymanifestfile)
+    if(oldfile != null){
+      fs.unlinkSync('build/css/' + oldfile);
+      console.log('successfully deleted build/css/' + oldfile);
+    }
+  }
   var plugins = [
     cssimport, 
     autoprefixer,
@@ -109,8 +125,8 @@ gulp.task('css', ['js'], function () {
         .pipe(postcss(plugins))
         .pipe(rev()) //cache busting
         .pipe(gulp.dest('./build/css/'))
-        .pipe(rev.manifest({merge: true}))
-  return cssbuild.pipe(gulp.dest('./build/css/'))
+        .pipe(rev.manifest('build/rev-manifest.json',{base: './build', merge: true}))
+  return cssbuild.pipe(gulp.dest('./build'))
 });
 
 // watch for changes
@@ -118,9 +134,9 @@ gulp.task('watch', ['html'], function() {
   //html changes
   gulp.watch(folder.src + 'html/**/*', ['html']);
   // javascript changes
-  gulp.watch(folder.src + 'js/**/*', ['js']);
+  gulp.watch(folder.src + 'js/**/*', ['html']);
   // css changes
-  gulp.watch(folder.src + 'scss/**/*', ['css']);
+  gulp.watch(folder.src + 'css/**/*', ['html']);
   return
 });
 
@@ -153,4 +169,12 @@ function parseManifest(jsonfile){
     }
 
     return newobj
+}
+
+function findValueInManifest(key, jsonfile){
+  var manifest = JSON.parse(fs.readFileSync(jsonfile, 'utf8'));
+    if (manifest.hasOwnProperty(key)) {
+      return manifest[key]
+    }
+    else { return null}
 }
