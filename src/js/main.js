@@ -6,9 +6,10 @@ console.log(hello())
 var $ = require("jquery")
 window.onload = function() {
     document.getElementById("hello").innerText = hello()
-    $("p").on('click', function(){
-        alert("ooh that really hurt")
+    $("button").on('click', function(){
+        alert("You're all set")
     });
+    
 }
 
 

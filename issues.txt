@@ -1,0 +1,7 @@
+*******************
+Quick Scratch Pad of issues and outstanding todos
+*******************
+
+1) cache-busting is not deleting OLD version of js/css files
+
+2)
