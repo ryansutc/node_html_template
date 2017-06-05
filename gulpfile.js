@@ -31,6 +31,7 @@ var gulp = require('gulp'),
     autoprefixer = require('autoprefixer'), //auto-prefix with vendor specifics
 
     gulpif = require('gulp-if'),
+    replace = require('gulp-replace'), //https://www.npmjs.com/package/gulp-replace
     rev = require('gulp-rev'), //https://www.npmjs.com/package/gulp-rev
     watch = require('gulp-watch'), //https://www.npmjs.com/package/gulp-watchgulp
     browserify = require('browserify'), //https://www.npmjs.com/package/gulp-cache-bust
@@ -42,7 +43,7 @@ var gulp = require('gulp'),
       
     // folders
     folder = { src: 'src/', build: 'build/'};
-    var mymanifestfile = 'build/rev-manifest.json';
+var mymanifestfile = 'build/rev-manifest.json';
 
 if(process.argv[process.argv.length-1] == '--prod' || process.argv[process.argv.length-1] == '--production'){
   console.log("running in prod mode")
@@ -70,12 +71,17 @@ gulp.task('html', ['js', 'css'], function() {
 
   return page.pipe(gulp.dest(out));
 });
-
+gulp.task("test", function(){
+  console.log(fs.existsSync(mymanifestfile))
+   
+})
 gulp.task("js", function () {
   //delete existing built js file
-  if(fs.exists(mymanifestfile)){
+  if(fs.existsSync(mymanifestfile)){
+    console.log("exists " + mymanifestfile)
     var oldfile = findValueInManifest('main.js', mymanifestfile)
     if(oldfile != null){
+      console.log("deleting old file...")
       fs.unlinkSync('build/js/' + oldfile);
       console.log('successfully deleted build/js/' + oldfile);
     }
@@ -91,8 +97,14 @@ gulp.task("js", function () {
         .pipe(rev()) //cache busting
         .pipe(gulp.dest('./build/js/'))
         .pipe(rev.manifest('build/rev-manifest.json', {base: './build', merge: true}))
-      
-  return jsbuild.pipe(gulp.dest('./build'));
+        .pipe(gulp.dest('./build'));
+   if(oldfile != undefined){
+      gulp.src(folder.build + 'html/**/*.html')
+            .pipe(replace(oldfile, findValueInManifest(parseKeyFromValue(oldfile))))
+            .pipe(gulp.dest('build'));
+   }
+       
+  return;
 });
 
 gulp.task('css', function () {
@@ -177,4 +189,19 @@ function findValueInManifest(key, jsonfile){
       return manifest[key]
     }
     else { return null}
+}
+
+function parseKeyFromValue(value){
+ /**
+  * Take a |value| like main-1ceb2A4hl93f.js
+  * and return |key| like main.js
+  */
+ 
+  var res = value.split("-");
+    var name = "";
+    for (i = 0; i < res.length -1; i++){
+    	name += res[i] + "-";
+    }
+    name = name.slice(0, -1) + ".js";	
+    return name;
 }
