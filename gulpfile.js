@@ -43,6 +43,7 @@ var gulp = require('gulp'),
       
     // folders
     folder = { src: 'src/', build: 'build/'};
+var mainjsfile = "main.js"
 var mymanifestfile = 'build/rev-manifest.json';
 
 if(process.argv[process.argv.length-1] == '--prod' || process.argv[process.argv.length-1] == '--production'){
@@ -57,11 +58,11 @@ gulp.task('run', ['html', 'js', 'css']); //terminal: gulp run will run all stuff
 gulp.task('default', ['run', 'watch']) ; //plain ol' terminal gulp will do above & watch for changes
 
 // HTML processing
-gulp.task('html', ['js', 'css'], function() {
-  var out = folder.build + "/html"
+gulp.task('html', function() {
+  var out = folder.build + "html"
+  console.log("output folder is: " + out)
   var page = gulp.src(folder.src + 'html/**/*')
       .pipe(newer(out))
-      //.pipe(mustache('./build/rev-manifest.json',{},{}))
       .pipe(mustache(parseManifest(mymanifestfile),{},{}))
       
   // minify code if production
@@ -71,26 +72,21 @@ gulp.task('html', ['js', 'css'], function() {
 
   return page.pipe(gulp.dest(out));
 });
-gulp.task("test", function(){
-  console.log(fs.existsSync(mymanifestfile))
-   
-})
+
+
 gulp.task("js", function () {
   //delete existing built js file
   if(fs.existsSync(mymanifestfile)){
-    console.log("exists " + mymanifestfile)
-    var oldfile = findValueInManifest('main.js', mymanifestfile)
+    var oldfile = findValueInManifest(mainjsfile, mymanifestfile)
     if(oldfile != null){
-      console.log("deleting old file...")
       fs.unlinkSync('build/js/' + oldfile);
       console.log('successfully deleted build/js/' + oldfile);
     }
   }
-
   var files = glob.sync(folder.src + 'js/**/*.js');
   var jsbuild = gulpif(isProd,browserify(files), browserify(files, {debug:true}))
         .bundle()
-        .pipe(source("main.js"))
+        .pipe(source(mainjsfile))
         .pipe(buffer())
         .pipe(gulpif(isProd, stripdebug()))
         .pipe(gulpif(isProd,uglify()))
@@ -99,14 +95,28 @@ gulp.task("js", function () {
         .pipe(rev.manifest('build/rev-manifest.json', {base: './build', merge: true}))
         .pipe(gulp.dest('./build'));
    if(oldfile != undefined){
+     var newfile = findValueInManifest(parseKeyFromValue(oldfile), mymanifestfile) //this isn't getting new file
+     console.log("the new file should be: " + newfile)
       gulp.src(folder.build + 'html/**/*.html')
-            .pipe(replace(oldfile, findValueInManifest(parseKeyFromValue(oldfile))))
-            .pipe(gulp.dest('build'));
+            .pipe(replace(oldfile, newfile))
+            .pipe(gulp.dest('build/html'));
    }
        
-  return;
+  return oldfile;
 });
 
+gulp.task('htmlupdate', function () {
+  var newfile = findValueInManifest(mainjsfile, mymanifestfile) //this isn't getting new file
+  console.log("the new file should be: " + newfile)
+  gulp.src(folder.build + 'html/**/*.html')
+      .pipe(replace(oldfile, newfile))
+      .pipe(gulp.dest('build/html'));
+  return;
+})
+
+gulp.task('hello',['htmlupdate'], function(){
+  console.log("done")
+})
 gulp.task('css', function () {
   /**
    * SASS/CSS files are organized as per here:
