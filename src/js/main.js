@@ -7,7 +7,7 @@ var $ = require("jquery")
 window.onload = function() {
     document.getElementById("hello").innerText = hello()
     $("button").on('click', function(){
-        alert("You're all set to rock and go")
+        alert("You're all set with your js. give'r")
     });
     
 }

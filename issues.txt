@@ -4,4 +4,13 @@ Quick Scratch Pad of issues and outstanding todos
 
 1) cache-busting is not deleting OLD version of js/css files
 
-2)
+2) Find/Replace on HTML in build when fingerprint changes for resources is causing html not to recognize changes from source because source file is no longer newer.
+
+- css changes (html is changed in build)
+- html in source changes (html calls css to update?)
+
+Does html need to call js, css each time and if so can these tasks just pass if there is nothing changed?
+
+3) CSS Plugins for postcss are set up?
+https://github.com/postcss/gulp-postcss
+https://www.sitepoint.com/introduction-gulp-js/

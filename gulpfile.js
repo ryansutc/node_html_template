@@ -29,7 +29,7 @@ var gulp = require('gulp'),
     cssimport = require('postcss-import'), //merge css w import statements
     cssnano = require('cssnano'),  //minify css files
     autoprefixer = require('autoprefixer'), //auto-prefix with vendor specifics
-
+    runseq = require('run-sequence'), //https://www.npmjs.com/package/run-sequence
     gulpif = require('gulp-if'),
     replace = require('gulp-replace'), //https://www.npmjs.com/package/gulp-replace
     rev = require('gulp-rev'), //https://www.npmjs.com/package/gulp-rev
@@ -53,9 +53,14 @@ if(process.argv[process.argv.length-1] == '--prod' || process.argv[process.argv.
 else {
   console.log("running in dev mode")
 }
+//########################################
 
-gulp.task('run', ['html', 'js', 'css']); //terminal: gulp run will run all stuff
-gulp.task('default', ['run', 'watch']) ; //plain ol' terminal gulp will do above & watch for changes
+gulp.task('build', function(cb) {
+  //build is set to run js & css tasks first, then html.
+  runseq(['js','css'],'html', cb)
+
+})
+gulp.task('default', ['build', 'watch']) ; //plain ol' terminal gulp will build & watch for changes
 
 // HTML processing
 gulp.task('html', function() {
@@ -83,8 +88,9 @@ gulp.task("js", function () {
       console.log('successfully deleted build/js/' + oldfile);
     }
   }
+
   var files = glob.sync(folder.src + 'js/**/*.js');
-  var jsbuild = gulpif(isProd,browserify(files), browserify(files, {debug:true}))
+  return gulpif(isProd,browserify(files), browserify(files, {debug:true}))
         .bundle()
         .pipe(source(mainjsfile))
         .pipe(buffer())
@@ -93,30 +99,18 @@ gulp.task("js", function () {
         .pipe(rev()) //cache busting
         .pipe(gulp.dest('./build/js/'))
         .pipe(rev.manifest('build/rev-manifest.json', {base: './build', merge: true}))
-        .pipe(gulp.dest('./build'));
-   if(oldfile != undefined){
-     var newfile = findValueInManifest(parseKeyFromValue(oldfile), mymanifestfile) //this isn't getting new file
-     console.log("the new file should be: " + newfile)
-      gulp.src(folder.build + 'html/**/*.html')
-            .pipe(replace(oldfile, newfile))
-            .pipe(gulp.dest('build/html'));
-   }
-       
-  return oldfile;
+        .pipe(gulp.dest('./build'))
+        .on("end", function(){
+          if(oldfile != undefined){
+            var newfile = findValueInManifest(parseKeyFromValue(oldfile), mymanifestfile) //this isn't getting new file
+            console.log("the new file is: " + newfile)
+            gulp.src(folder.build + 'html/**/*.html')
+              .pipe(replace(oldfile, newfile))
+              .pipe(gulp.dest('build/html'));
+          }
+  });
 });
 
-gulp.task('htmlupdate', function () {
-  var newfile = findValueInManifest(mainjsfile, mymanifestfile) //this isn't getting new file
-  console.log("the new file should be: " + newfile)
-  gulp.src(folder.build + 'html/**/*.html')
-      .pipe(replace(oldfile, newfile))
-      .pipe(gulp.dest('build/html'));
-  return;
-})
-
-gulp.task('hello',['htmlupdate'], function(){
-  console.log("done")
-})
 gulp.task('css', function () {
   /**
    * SASS/CSS files are organized as per here:
@@ -128,8 +122,8 @@ gulp.task('css', function () {
    * folder directory
    * 
    */
-  //delete existing built css file
-  if(fs.exists(mymanifestfile)){
+  //delete previously built css file
+  if(fs.existsSync(mymanifestfile)){ 
     var oldfile = findValueInManifest('main.css', mymanifestfile)
     if(oldfile != null){
       fs.unlinkSync('build/css/' + oldfile);
@@ -149,31 +143,40 @@ gulp.task('css', function () {
         .pipe(gulp.dest('./build/css/'))
         .pipe(rev.manifest('build/rev-manifest.json',{base: './build', merge: true}))
   return cssbuild.pipe(gulp.dest('./build'))
+    .on('end', function(){
+      if(oldfile != undefined){
+        var newfile = findValueInManifest(parseKeyFromValue(oldfile), mymanifestfile)
+        console.log("the new css file is: " + newfile)
+        gulp.src(folder.build + 'html/**/*.html')
+          .pipe(replace(oldfile, newfile))
+          .pipe(gulp.dest('build/html'));
+      }
+    })
 });
 
-// watch for changes
+// watch for changes (need to configure longer delay)
 gulp.task('watch', ['html'], function() {
   //html changes
   gulp.watch(folder.src + 'html/**/*', ['html']);
   // javascript changes
-  gulp.watch(folder.src + 'js/**/*', ['html']);
+  gulp.watch(folder.src + 'js/**/*', ['js']);
   // css changes
-  gulp.watch(folder.src + 'css/**/*', ['html']);
+  gulp.watch(folder.src + 'css/**/*', ['css']);
   return
 });
 
 
 //###########################################
-/**
+
+
+function parseManifest(jsonfile){
+  /**
  * Support function for gulp. Should probably
  * be its own module.
  * 
  * Description: Parses, manifest file to a 
  * mustache friendly json object
  */
-
-function parseManifest(jsonfile){
-
     var manifest = JSON.parse(fs.readFileSync(jsonfile, 'utf8'));
     var newobj = {}
     for (var key in manifest){
@@ -193,6 +196,7 @@ function parseManifest(jsonfile){
     return newobj
 }
 
+
 function findValueInManifest(key, jsonfile){
   var manifest = JSON.parse(fs.readFileSync(jsonfile, 'utf8'));
     if (manifest.hasOwnProperty(key)) {
@@ -208,10 +212,11 @@ function parseKeyFromValue(value){
   */
  
   var res = value.split("-");
-    var name = "";
-    for (i = 0; i < res.length -1; i++){
-    	name += res[i] + "-";
-    }
-    name = name.slice(0, -1) + ".js";	
-    return name;
+  var name = "";
+  for (i = 0; i < res.length -1; i++){
+    name += res[i] + "-";
+  }
+  var suffix = value.split('.').pop();
+  name = name.slice(0, -1) + "." + suffix;	
+  return name;
 }
