@@ -21,3 +21,18 @@ npm install -g browserify
 ```
 
 ### To Run
+
+Make sure you have run npm install to get required modules. 
+To make a build of your project with gulp do:
+```
+gulp build
+```
+To build AND auto-update your changes developing on a file server do (default):
+```
+gulp
+```
+NEW:
+To build and auto-update your changes AND load in an http webserver do:
+```
+gulp web
+```
