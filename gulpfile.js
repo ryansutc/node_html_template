@@ -9,9 +9,10 @@
  * install sass compiler globally: npm install node-sass -g 
  * install http-server globally (optional): npm install http-server -g
  * 
- * This gulp project setup is based on other gulp solutions below:
+ * This gulp project setup is based on/ inspired by other gulp solutions below:
  * https://wehavefaces.net/gulp-browserify-the-gulp-y-way-bb359b3f9623
  * https://slicejack.com/introduction-to-postcss/
+ * https://code.tutsplus.com/tutorials/gulp-as-a-development-web-server--cms-20903
  */
 
 //module variables
@@ -38,6 +39,7 @@ var gulp = require('gulp'),
     rev = require('gulp-rev'), //https://www.npmjs.com/package/gulp-rev
     watch = require('gulp-watch'), //https://www.npmjs.com/package/gulp-watch
     browserify = require('browserify'), //https://www.npmjs.com/package/gulp-cache-bust
+    connect = require('gulp-connect'), //https://www.npmjs.com/package/gulp-connect
     source = require('vinyl-source-stream'), //https://www.viget.com/articles/gulp-browserify-starter-faq
     transform = require('vinyl-transform'),
     buffer = require('vinyl-buffer'), // https://www.npmjs.com/package/vinyl-buffer
@@ -65,6 +67,8 @@ gulp.task('build', function(cb) {
 })
 gulp.task('default', ['build', 'watch']) ; //plain ol' terminal gulp will build & watch for changes
 
+gulp.task('web', ['build', 'webserver', 'watch']) //gulp web will build & watch AND set up webserver
+
 // HTML processing
 gulp.task('html', function() {
   var out = folder.build + "html"
@@ -73,7 +77,8 @@ gulp.task('html', function() {
       .pipe(newer(out))
       .pipe(mustache(parseManifest(mymanifestfile),{},{}))
       .pipe(gulpif(isProd, htmlclean())) // minify code if production
-      .pipe(gulp.dest(out));
+      .pipe(gulp.dest(out))
+      .pipe(connect.reload());
 });
 
 
@@ -82,7 +87,7 @@ gulp.task("js", function () {
   if(fs.existsSync(mymanifestfile)){
     var oldfile = findValueInManifest(mainjsfile, mymanifestfile)
     if(oldfile != null){
-      try {
+      try {guk
         fs.unlinkSync('build/js/' + oldfile);
         console.log('successfully deleted build/js/' + oldfile);
       } catch(err) {
@@ -102,6 +107,7 @@ gulp.task("js", function () {
         .pipe(gulp.dest('./build/js/'))
         .pipe(rev.manifest('build/rev-manifest.json', {base: './build', merge: true}))
         .pipe(gulp.dest('./build'))
+        .pipe(connect.reload())
         .on("end", function(){
           if(oldfile != undefined){
             var newfile = findValueInManifest(parseKeyFromValue(oldfile), mymanifestfile) //this isn't getting new file
@@ -149,13 +155,15 @@ gulp.task('css', function () {
         .pipe(gulp.dest('./build/css/'))
         .pipe(rev.manifest('build/rev-manifest.json',{base: './build', merge: true}))
   return cssbuild.pipe(gulp.dest('./build'))
+    
     .on('end', function(){
       if(oldfile != undefined){
         var newfile = findValueInManifest(parseKeyFromValue(oldfile), mymanifestfile)
         console.log("the new css file is: " + newfile)
         gulp.src(folder.build + 'html/**/*.html')
           .pipe(replace(oldfile, newfile))
-          .pipe(gulp.dest('build/html'));
+          .pipe(gulp.dest('build/html'))
+          .pipe(connect.reload());
       }
     })
 });
@@ -171,7 +179,12 @@ gulp.task('watch', function() {
   return
 });
 
-
+//start a basic http webserver for testing
+gulp.task('webserver', function() {
+  connect.server({
+    livereload: true
+  });
+});
 //###########################################
 
 
