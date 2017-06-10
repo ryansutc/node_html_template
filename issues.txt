@@ -2,9 +2,7 @@
 Quick Scratch Pad of issues and outstanding todos
 *******************
 
-1) cache-busting is not deleting OLD version of js/css files
 
-2) Find/Replace on HTML in build when fingerprint changes for resources is causing html not to recognize changes from source because source file is no longer newer.
 
 - css changes (html is changed in build)
 - html in source changes (html calls css to update?)

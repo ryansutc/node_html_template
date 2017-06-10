@@ -1,18 +1,20 @@
 /**
  * Created by RSutcliffe on 5/25/17.
- * gulp Gulp.js configuration
+ * gulp Gulp.js configuration for basic web page testing
+ * and node
  * 
  * Steps for new machine/proj:
  * install gulp globally: npm install gulp-cli -g
- * install browserify globally: npm install -g browserify
- * install sass compiler globally: npm install -g node-sass
- * //sass modules:
- * npm install gulp-sass gulp-postcss postcss-assets autoprefixer css-mqpacker cssnano --save-dev
+ * install browserify globally: npm install browserify -g
+ * install sass compiler globally: npm install node-sass -g 
+ * install http-server globally (optional): npm install http-server -g
  * 
+ * This gulp project setup is based on other gulp solutions below:
  * https://wehavefaces.net/gulp-browserify-the-gulp-y-way-bb359b3f9623
  * https://slicejack.com/introduction-to-postcss/
  */
 
+//module variables
 var gulp = require('gulp'),
     fs = require('fs'),
     glob = require('glob'),
@@ -29,11 +31,12 @@ var gulp = require('gulp'),
     cssimport = require('postcss-import'), //merge css w import statements
     cssnano = require('cssnano'),  //minify css files
     autoprefixer = require('autoprefixer'), //auto-prefix with vendor specifics
+
     runseq = require('run-sequence'), //https://www.npmjs.com/package/run-sequence
     gulpif = require('gulp-if'),
     replace = require('gulp-replace'), //https://www.npmjs.com/package/gulp-replace
     rev = require('gulp-rev'), //https://www.npmjs.com/package/gulp-rev
-    watch = require('gulp-watch'), //https://www.npmjs.com/package/gulp-watchgulp
+    watch = require('gulp-watch'), //https://www.npmjs.com/package/gulp-watch
     browserify = require('browserify'), //https://www.npmjs.com/package/gulp-cache-bust
     source = require('vinyl-source-stream'), //https://www.viget.com/articles/gulp-browserify-starter-faq
     transform = require('vinyl-transform'),
@@ -57,7 +60,7 @@ else {
 
 gulp.task('build', function(cb) {
   //build is set to run js & css tasks first, then html.
-  runseq(['js','css'],'html', cb)
+  runseq('js','css', 'html', cb)
 
 })
 gulp.task('default', ['build', 'watch']) ; //plain ol' terminal gulp will build & watch for changes
@@ -66,16 +69,11 @@ gulp.task('default', ['build', 'watch']) ; //plain ol' terminal gulp will build 
 gulp.task('html', function() {
   var out = folder.build + "html"
   console.log("output folder is: " + out)
-  var page = gulp.src(folder.src + 'html/**/*')
+  return gulp.src(folder.src + 'html/**/*')
       .pipe(newer(out))
       .pipe(mustache(parseManifest(mymanifestfile),{},{}))
-      
-  // minify code if production
-  if (isProd) {
-    page = page.pipe(htmlclean());
-  }
-
-  return page.pipe(gulp.dest(out));
+      .pipe(gulpif(isProd, htmlclean())) // minify code if production
+      .pipe(gulp.dest(out));
 });
 
 
@@ -155,7 +153,7 @@ gulp.task('css', function () {
 });
 
 // watch for changes (need to configure longer delay)
-gulp.task('watch', ['html'], function() {
+gulp.task('watch', function() {
   //html changes
   gulp.watch(folder.src + 'html/**/*', ['html']);
   // javascript changes
