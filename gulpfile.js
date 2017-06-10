@@ -82,8 +82,12 @@ gulp.task("js", function () {
   if(fs.existsSync(mymanifestfile)){
     var oldfile = findValueInManifest(mainjsfile, mymanifestfile)
     if(oldfile != null){
-      fs.unlinkSync('build/js/' + oldfile);
-      console.log('successfully deleted build/js/' + oldfile);
+      try {
+        fs.unlinkSync('build/js/' + oldfile);
+        console.log('successfully deleted build/js/' + oldfile);
+      } catch(err) {
+        console.log('could not delete file (does it exist?)' + oldfile)
+      }
     }
   }
 
@@ -124,8 +128,12 @@ gulp.task('css', function () {
   if(fs.existsSync(mymanifestfile)){ 
     var oldfile = findValueInManifest('main.css', mymanifestfile)
     if(oldfile != null){
-      fs.unlinkSync('build/css/' + oldfile);
-      console.log('successfully deleted build/css/' + oldfile);
+      try {
+        fs.unlinkSync('build/css/' + oldfile);
+        console.log('successfully deleted build/css/' + oldfile);
+      } catch(err) {
+        console.log('could not delete file (does it exist?) ' + oldfile);
+      }
     }
   }
   var plugins = [
