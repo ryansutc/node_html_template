@@ -182,6 +182,8 @@ gulp.task('watch', function() {
 //start a basic http webserver for testing
 gulp.task('webserver', function() {
   connect.server({
+    root: 'build',
+    index: 'html\index.html',
     livereload: true
   });
 });
